@@ -8,9 +8,9 @@ controller_workflows:
                              | default(current_workflow_job_templates_asset_value.description) | regex_replace("'", "''")
     }}'
     organization: "{{ current_workflow_job_templates_asset_value.summary_fields.organization.name | default(organization if organization != 'ORGANIZATIONLESS' else 'ToDo: The WF \'' + current_workflow_job_templates_asset_value.name + '\' must belong to an organization') }}"
-{% if template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].inventory is defined
-      or template_overrides_global.workflow_template.inventory is defined
-      or current_workflow_job_templates_asset_value.inventory is defined %}
+{% if (template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].inventory is defined and template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].inventory | int > 0)
+      or (template_overrides_global.workflow_template.inventory is defined and template_overrides_global.workflow_template.inventory | int > 0)
+      or (current_workflow_job_templates_asset_value.inventory is defined and current_workflow_job_templates_asset_value.inventory | int > 0) %}
 {% set inv_var = query('ansible.platform.gateway_api', 'api/controller/v2/inventories',
                        query_params={'id': template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].inventory | default(template_overrides_global.workflow_template.inventory) | default(current_workflow_job_templates_asset_value.inventory) },
                        host=aap_hostname, oauth_token=aap_oauthtoken, verify_ssl=aap_validate_certs, return_all=true, max_objects=query_controller_api_max_objects) %}
