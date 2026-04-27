@@ -15,6 +15,14 @@ controller_workflows:
       {{ '{%- endraw -%}' }}
 {% endif %}
     organization: "{{ current_workflow_job_templates_asset_value.summary_fields.organization.name | default(organization if organization != 'ORGANIZATIONLESS' else 'ToDo: The WF \'' + current_workflow_job_templates_asset_value.name + '\' must belong to an organization') }}"
+{% if (template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].inventory is defined and template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].inventory | int > 0)
+      or (template_overrides_global.workflow_template.inventory is defined and template_overrides_global.workflow_template.inventory | int > 0)
+      or (current_workflow_job_templates_asset_value.inventory is defined and current_workflow_job_templates_asset_value.inventory | int > 0) %}
+{% set inv_var = query('ansible.platform.gateway_api', 'api/controller/v2/inventories',
+                       query_params={'id': template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].inventory | default(template_overrides_global.workflow_template.inventory) | default(current_workflow_job_templates_asset_value.inventory) },
+                       host=aap_hostname, oauth_token=aap_oauthtoken, verify_ssl=aap_validate_certs, return_all=true, max_objects=query_controller_api_max_objects) %}
+    inventory: "{{ inv_var[0].name }}"
+{% endif %}
     simplified_workflow_nodes:
 {% for node in query('ansible.platform.gateway_api', 'api/controller/v2/workflow_job_template_nodes/',
                      query_params={'workflow_job_template': current_workflow_job_templates_asset_value.id},
@@ -33,10 +41,30 @@ controller_workflows:
           timeout: {{ node.summary_fields.unified_job_template.timeout }}
 {%   else %}
         unified_job_template: "{{ node.summary_fields.unified_job_template.name | default('ToDo: The node is pointing to a deleted Job Template') }}"
+        unified_job_type : "{{ node.summary_fields.unified_job_template.unified_job_type | default('ToDo: The node is pointing to a deleted Job Template') }}"
+{%     if node.summary_fields.unified_job_template.unified_job_type is match('job') %}
+{%       set org_var = query('ansible.platform.gateway_api', 'api/controller/v2/job_templates', query_params={'id': node.summary_fields.unified_job_template.id},
+                             host=aap_hostname, oauth_token=aap_oauthtoken, verify_ssl=aap_validate_certs, return_all=true, max_objects=query_controller_api_max_objects) %}
+        lookup_organization: "{{ org_var[0].summary_fields.organization.name }}"
+{%     elif node.summary_fields.unified_job_template.unified_job_type is match('workflow_job') %}
+{%       set org_var = query('ansible.platform.gateway_api', 'api/controller/v2/workflow_job_templates', query_params={'id': node.summary_fields.unified_job_template.id},
+                             host=aap_hostname, oauth_token=aap_oauthtoken, verify_ssl=aap_validate_certs, return_all=true, max_objects=query_controller_api_max_objects) %}
+        lookup_organization: "{{ org_var[0].summary_fields.organization.name }}"
+{%     elif node.summary_fields.unified_job_template.unified_job_type is match('project_update') %}
+{%       set org_var = query('ansible.platform.gateway_api', 'api/controller/v2/projects', query_params={'id': node.summary_fields.unified_job_template.id},
+                             host=aap_hostname, oauth_token=aap_oauthtoken, verify_ssl=aap_validate_certs, return_all=true, max_objects=query_controller_api_max_objects) %}
+        lookup_organization: "{{ org_var[0].summary_fields.organization.name }}"
+{%     elif node.summary_fields.unified_job_template.unified_job_type is match('inventory_update') %}
+{%       set org_var = query('ansible.platform.gateway_api', 'api/controller/v2/inventory_sources', query_params={'id': node.summary_fields.unified_job_template.id},
+                            host=aap_hostname, oauth_token=aap_oauthtoken, verify_ssl=aap_validate_certs, return_all=true, max_objects=query_controller_api_max_objects) %}
+        lookup_organization: "{{ org_var[0].summary_fields.organization.name }}"
+{%     elif node.summary_fields.unified_job_template.unified_job_type is match('system_job') %}
+#        lookup_organization: "" # organization not available for system jobs. Btw, query endpoint should be 'api/controller/v2/system_job_templates'
+{%     endif %}
 {%     if node.verbosity != None %}
         verbosity: "{{ node.verbosity }}"
 {%     else %}
-{%     set jt_var = query('ansible.platform.gateway_api', 'api/controller/v2/job_templates',
+{%       set jt_var = query('ansible.platform.gateway_api', 'api/controller/v2/job_templates',
                           query_params={'name': node.summary_fields.unified_job_template.name},
                           host=aap_hostname, oauth_token=aap_oauthtoken, verify_ssl=aap_validate_certs,
                           return_all=true, max_objects=query_controller_api_max_objects) %}
@@ -55,6 +83,12 @@ controller_workflows:
 {% endif %}
 {% if node.job_type %}
         job_type: "{{ node.job_type }}"
+{% endif %}
+{% if node.summary_fields.unified_job_template.unified_job_type is match('workflow_approval') %}
+        approval_node:
+          description: "{{ node.summary_fields.unified_job_template.description }}"
+          name: "{{ node.summary_fields.unified_job_template.name }}"
+          timeout: {{ node.summary_fields.unified_job_template.timeout }}
 {% endif %}
         organization: "{{ current_workflow_job_templates_asset_value.summary_fields.organization.name | default(organization if organization != 'ORGANIZATIONLESS' else 'ToDo: The WF \'' + current_workflow_job_templates_asset_value.name + '\' must belong to an organization') }}"
         all_parents_must_converge: "{{ node.all_parents_must_converge }}"
@@ -97,6 +131,27 @@ controller_workflows:
     ask_variables_on_launch: "{{  template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].ask_variables_on_launch
                                  | default(template_overrides_global.workflow_template.ask_variables_on_launch)
                                  | default(current_workflow_job_templates_asset_value.ask_variables_on_launch) }}"
+    ask_tags_on_launch: {{ template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].ask_tags_on_launch
+                           | default(template_overrides_global.workflow_template.ask_tags_on_launch)
+                           | default(current_workflow_job_templates_asset_value.ask_tags_on_launch | bool | lower) }}
+    ask_skip_tags_on_launch: {{ template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].ask_skip_tags_on_launch
+                                | default(template_overrides_global.workflow_template.ask_skip_tags_on_launch)
+                                | default(current_workflow_job_templates_asset_value.ask_skip_tags_on_launch | bool | lower) }}
+    job_tags: "{{ template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].job_tags
+                  | default(template_overrides_global.workflow_template.job_tags)
+                  | default(current_workflow_job_templates_asset_value.job_tags) }}"
+    skip_tags: "{{ template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].skip_tags
+                   | default(template_overrides_global.workflow_template.skip_tags)
+                   | default(current_workflow_job_templates_asset_value.skip_tags) }}"
+    ask_labels_on_launch: "{{ template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].ask_labels_on_launch
+                   | default(template_overrides_global.workflow_template.ask_labels_on_launch)
+                   | default(current_workflow_job_templates_asset_value.ask_labels_on_launch) }}"
+    ask_scm_branch_on_launch: "{{ template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].ask_scm_branch_on_launch
+                   | default(template_overrides_global.workflow_template.ask_scm_branch_on_launch)
+                   | default(current_workflow_job_templates_asset_value.ask_scm_branch_on_launch) }}"
+{#    destroy_current_nodes: "" this should be used during import #}
+{#    webhook_credential: "" I think it's webhook key. But webhook URL is missing from collection (or it's not documented) #}
+{#    verbosity: "" missing from web interface #}
     allow_simultaneous: "{{ template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].allow_simultaneous
                             | default(template_overrides_global.workflow_template.allow_simultaneous)
                             | default(current_workflow_job_templates_asset_value.allow_simultaneous) }}"
@@ -117,7 +172,7 @@ controller_workflows:
                          | default(current_workflow_job_templates_asset_value.webhook_service) }}"
 {% if template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].extra_vars is defined
       or template_overrides_global.workflow_template.extra_vars is defined
-      or (current_workflow_job_templates_asset_value.extra_vars and current_workflow_job_templates_asset_value.extra_vars | from_yaml | string is not match('None')) %}
+      or (current_workflow_job_templates_asset_value.extra_vars and current_workflow_job_templates_asset_value.extra_vars | length > 3) %}
     extra_vars:
 {% set extra_vars_contents = template_overrides_resources.workflow_job_template[current_workflow_job_templates_asset_value.name].extra_vars
                              | default(template_overrides_global.workflow_job_template.extra_vars)
@@ -185,7 +240,7 @@ controller_workflows:
 {%     set _var = namespace(first_survey_item = true) %}
 {%     for survey_item_content in (survey_item | dict2items) if ((survey_item_content.value | string | length) > 0 and (survey_item_content.value | string) is not match('None')) %}
 {%       if survey_item_content.key | regex_search('question_name|question_description|default') %}
-{%         if survey_item_content.value is number %}
+{%         if survey_item_content.value is integer %}
 {%           set current_content = survey_item_content.key + ': ' + survey_item_content.value | string %}
 {%         else %}
 {%           set current_content = survey_item_content.key + ': "{%- raw -%}' + (survey_item_content.value | regex_replace("\n", "\\\\n") | regex_replace('"', '\\"')) | regex_replace('\\\\(?!n|")', '\\\\\\\\') + '{%- endraw -%}"' %}

@@ -13,9 +13,18 @@
                           }}"
       no_log: "{{ controller_configuration_filetree_create_secure_logging }}"
 
+    - name: "Get the organization_filter ID to restrict the API queries (controller)"
+      ansible.builtin.set_fact:
+        organization_id_controller: "{{ lookup('ansible.platform.gateway_api', 'api/controller/v2/organizations/',
+                                              query_params={'name': organization_filter},
+                                              host=aap_hostname, oauth_token=aap_oauthtoken,
+                                              verify_ssl=aap_validate_certs).id
+                                     }}"
+      no_log: "{{ controller_configuration_filetree_create_secure_logging }}"
+
     - name: "Show the organization_filter ID"
       ansible.builtin.debug:
-        msg: "The organization {{ organization_filter }} has the ID {{ organization_id }}"
+        msg: "The organization {{ organization_filter }} has the ID {{ organization_id }} on gateway and the ID {{ organization_id_controller }} on controller"
 
 - name: "Block to check if the PAH instance is available"
   block:
