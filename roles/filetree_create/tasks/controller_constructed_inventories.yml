@@ -9,7 +9,7 @@
                                     }}"
   vars:
     query_params:
-     not__kind: ''
+      not__kind: ''
       order_by: 'organization,id'
   no_log: "{{ controller_configuration_filetree_create_secure_logging }}"
 
