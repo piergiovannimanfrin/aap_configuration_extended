@@ -17,7 +17,7 @@ controller_notifications:
 {%   else %}
       {{ key }}: |-
         {{ '{%- raw -%}' }}
-        {{ value | replace('\n','\\n') | replace('"', '\\"') }}
+        {{ value | replace('\n','\\n') | replace('"', '\\"') | indent(8) }}
         {{ '{%- endraw -%}' }}
 {%   endif %}
 {% endfor %}
