@@ -1,7 +1,7 @@
 ---
 namespace: isp
 name: aap_configuration_extended
-version: 4.4.0-20260429-03
+version: 4.4.0-20260702-01
 description: A collection of roles to extend functionality of aap_configuration collection
 readme: README.md
 authors:
