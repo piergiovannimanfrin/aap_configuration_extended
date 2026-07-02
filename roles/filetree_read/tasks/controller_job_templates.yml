@@ -20,6 +20,7 @@
   register: __contents_filetree_controller_templates
   failed_when: "'VARIABLE IS NOT DEFINED' in __contents_filetree_controller_templates"
 
+# TODO: bring back to infra.aap_configuration_extended.surveys_cleanup
 - name: "Set Job Templates Data Structure"
   ansible.builtin.set_fact:
     controller_templates: >-
@@ -27,7 +28,7 @@
         __contents_filetree_controller_templates.results |
         rejectattr('ansible_facts.controller_templates', 'undefined') |
         map(attribute='ansible_facts.controller_templates') |
-        ansible.builtin.flatten
+        ansible.builtin.flatten | isp.aap_configuration_extended.surveys_cleanup
       }}
   no_log: "{{ controller_configuration_filetree_read_secure_logging }}"
   when:
