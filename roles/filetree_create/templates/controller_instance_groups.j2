@@ -4,6 +4,10 @@ controller_instance_groups: {{ [] if current_instance_groups_asset_value | lengt
   - name: "{{ ig.name }}"
     policy_instance_minimum: "{{ ig.policy_instance_minimum }}"
     policy_instance_percentage: "{{ ig.policy_instance_percentage }}"
+    is_container_group: {{ ig.is_container_group }}
+    max_concurrent_jobs: {{ ig.max_concurrent_jobs }}
+    max_forks: {{ ig.max_forks }}
+    pod_spec_override: "{{ ig.pod_spec_override | replace('\n', '\\n') | replace('"', '\\"') }}"
 {% set __ig_instances = query('ansible.platform.gateway_api', ig.related.instances,
                               host=aap_hostname, oauth_token=aap_oauthtoken, verify_ssl=aap_validate_certs,
                               return_all=true, max_objects=query_controller_api_max_objects) %}
