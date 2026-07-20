@@ -7,11 +7,9 @@ controller_schedules:
       or template_overrides_global.schedule.description is defined
       or current_schedules_asset_value.description is defined %}
     description: |-
-      {{ '{%- raw -%}' }}
-      {{ template_overrides_resources.schedule[current_schedules_asset_value.name].description
+      {{ '{%- raw -%}' }}{{ template_overrides_resources.schedule[current_schedules_asset_value.name].description
                      | default(template_overrides_global.schedule.description)
-                     | default(current_schedules_asset_value.description) | indent(6) }}
-      {{ '{%- endraw -%}' }}
+                     | default(current_schedules_asset_value.description) | indent(6) }}{{ '{%- endraw -%}' }}
 {% endif %}
     enabled: {{ template_overrides_resources.schedule[current_schedules_asset_value.name].enabled
                 | default(template_overrides_global.schedule.enabled)
@@ -19,6 +17,9 @@ controller_schedules:
     unified_job_template: "{{ template_overrides_resources.schedule[current_schedules_asset_value.name].unified_job_template
                 | default(template_overrides_global.schedule.unified_job_template)
                 | default(current_schedules_asset_value.summary_fields.unified_job_template.name) }}"
+    unified_job_type: "{{ template_overrides_resources.schedule[current_schedules_asset_value.name].unified_job_type
+                | default(template_overrides_global.schedule.unified_job_type)
+                | default(current_schedules_asset_value.summary_fields.unified_job_template.unified_job_type) }}"
 {% if template_overrides_resources.schedule[current_schedules_asset_value.name].inventory is defined
       or template_overrides_global.schedule.inventory is defined
       or current_schedules_asset_value.summary_fields.inventory is defined %}
