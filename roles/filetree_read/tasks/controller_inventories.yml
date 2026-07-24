@@ -20,9 +20,17 @@
   register: __contents_filetree_controller_inventories
   failed_when: "'VARIABLE IS NOT DEFINED' in __contents_filetree_controller_inventories"
 
-- name: "Set Inventories Data Structure"
+- name: "Set Inventories Data Structure" # this change is needed to have the constructed inv. after the normal inventories
   ansible.builtin.set_fact:
     controller_inventories: >-
+      {{
+        (__all_inv | rejectattr('kind', 'defined') +
+         __all_inv | selectattr('kind', 'defined') | rejectattr('kind', 'equalto', 'constructed'))
+        +
+        (__all_inv | selectattr('kind', 'defined') | selectattr('kind', 'equalto', 'constructed'))
+      }}
+  vars:
+    __all_inv: >-
       {{
         __contents_filetree_controller_inventories.results |
         rejectattr('ansible_facts.controller_inventories', 'undefined') |
